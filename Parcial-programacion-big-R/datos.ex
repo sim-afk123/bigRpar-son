@@ -1,6 +1,29 @@
 defmodule Datos do
+  @moduledoc """
+  Módulo encargado de proveer la información base de prueba para el sistema.
+  Contiene los datos de confeccionistas, líneas de producción y lotes de prendas.
+
+  - Autores: Simón Valencia Ochoa, Samuel Marín Varón, Isabel Cristina Guerra Guzmán.
+  - Fecha: Octubre del 2026
+  - Licencia: GNU GPL v3
+  """
+
   @doc """
   Retorna la lista de confeccionistas registrados en el taller.
+
+  Cada confeccionista se representa mediante un mapa con sus atributos clave:
+  - `:codigo` - Identificador único (String)
+  - `:nombre` - Nombre completo (String)
+  - `:alquiler` - Booleano indicando si alquila máquina del taller (`true`) o usa propia (`false`)
+
+  ## Ejemplos
+
+      iex> length(Datos.confeccionistas())
+      10
+
+      iex> hd(Datos.confeccionistas())
+      %{codigo: "C01", nombre: "María Elena Ríos", alquiler: true}
+
   """
   def confeccionistas do
     [
@@ -18,7 +41,21 @@ defmodule Datos do
   end
 
   @doc """
-  Retorna la lista de líneas de producción del taller.
+  Retorna la lista de líneas de producción disponibles en el taller.
+
+  Cada línea se representa como un mapa con:
+  - `:id` - Identificador de la línea (String)
+  - `:nombre` - Nombre descriptivo (String)
+  - `:puestos` - Cantidad de puestos de trabajo (Entero positivo)
+
+  ## Ejemplos
+
+      iex> length(Datos.lineas())
+      4
+
+      iex> hd(Datos.lineas())
+      %{id: "L1", nombre: "Línea Norte", puestos: 6}
+
   """
   def lineas do
     [
@@ -30,7 +67,26 @@ defmodule Datos do
   end
 
   @doc """
-  Retorna la lista de lotes de producción (válidos e inválidos).
+  Retorna la lista total de lotes registrados para la semana de trabajo.
+
+  Incluye 80 lotes válidos y 10 lotes inválidos (2 por cada motivo de rechazo posible)
+  para probar el subsistema de validación.
+
+  Cada lote está estructurado como un mapa con:
+  - `:confeccionista` - Código del confeccionista
+  - `:linea` - ID de la línea de producción
+  - `:dia` - Día de la semana (1 a 6)
+  - `:prendas` - Cantidad de prendas confeccionadas
+  - `:defectos` - Porcentaje de prendas defectuosas
+
+  ## Ejemplos
+
+      iex> length(Datos.lotes())
+      90
+
+      iex> List.first(Datos.lotes())
+      %{confeccionista: "C99", linea: "L1", dia: 1, prendas: 50, defectos: 1.0}
+
   """
   def lotes do
     [

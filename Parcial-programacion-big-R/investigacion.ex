@@ -1,55 +1,97 @@
 defmodule Investigacion do
+  @moduledoc """
+  Módulo que reúne los ejercicios de la Parte C del parcial.
+  Incluye la demostración del uso de Keyword Lists para opciones de funciones (C1),
+  la combinación de datos de producción mediante Map.merge/3 (C2) y las mediciones
+  de rendimiento de estructuras y algoritmos usando :timer.tc/1 (C3).
+
+  - Autores: Simón Valencia Ochoa, Samuel Marín Varón, Isabel Cristina Guerra Guzmán.
+  - Fecha: Octubre del 2026
+  - Licencia: GNU GPL v3
+  """
+
+  @doc """
+  Ejecuta secuencialmente los tres componentes investigativos de la Parte C.
+
+  ## Parámetros
+   - `liquidaciones`: Lista de mapas con las liquidaciones semanales.
+   - `lotes_validos`: Lista de lotes válidos aprobados por el sistema.
+
+  ## Ejemplos
+
+      ```elixir
+      Investigacion.ejecutar_todo(liquidaciones, lotes_validos)
+      ```
+
+  """
   def ejecutar_todo(liquidaciones, lotes_validos) do
-    IO.puts("\n" <> String.duplicate("=", 50))
-    IO.puts("PARTE C: INVESTIGACIÓN EN ELIXIR")
-    IO.puts(String.duplicate("=", 50))
+    IO.puts("**parte C: investigacion**")
 
     c1_keyword_lists(liquidaciones)
     c2_map_merge(lotes_validos)
     c3_mediciones_tc()
   end
 
-  def c1_keyword_lists(liquidaciones) do
-    IO.puts("\n--- C.1 RANKING CON KEYWORD LISTS ---")
+  @doc """
+  C1: Demuestra el comportamiento de `Reportes.ranking/2` al invocarla con
+  diferentes opciones mediante Keyword Lists.
 
-    IO.puts("\n1. Llamada por defecto (Reportes.ranking(liquidaciones, [])):")
+  ## Parámetros
+   - `liquidaciones`: Lista de liquidaciones a ordenar y filtrar.
+
+  """
+  def c1_keyword_lists(liquidaciones) do
+    IO.puts("\n ---C1 Ranking con Keyword list ")
+
+    IO.puts("\n1. llamada (Reportes.ranking(liquidaciones, [])):")
     IO.inspect(Reportes.ranking(liquidaciones, []))
 
-    IO.puts("\n2. Filtrado por prendas y límite 3 (campo: :prendas, limite: 3):")
+    IO.puts("\n2. fitro por prenda max 3 (campo: :prendas, limite: 3):")
     IO.inspect(Reportes.ranking(liquidaciones, campo: :prendas, limite: 3))
 
-    IO.puts("\n3. Orden ascendente por bruto (orden: :asc, campo: :bruto):")
+    IO.puts("\n3. orden ascendente por el bruto (orden: :asc, campo: :bruto):")
     IO.inspect(Reportes.ranking(liquidaciones, orden: :asc, campo: :bruto))
   end
 
-  def c2_map_merge(lotes_validos) do
-    IO.puts("\n--- C.2 COMBINACIÓN DE PRODUCCIÓN (Map.merge/3) ---")
+  @doc """
+  C2: Agrupa la producción propia por día y la combina con el mapa de un taller aliado
+  usando `Map.merge/3` para resolver colisiones de claves sumando la producción.
 
-    # 1. Agrupar la producción diaria del taller actual obtenida de los lotes válidos
+  ## Parámetros
+   - `lotes_validos`: Lista de lotes válidos registrados en el taller.
+
+  """
+  def c2_map_merge(lotes_validos) do
+    IO.puts("\n ---C2 combinacion de la produccion (Map.merge/3) ")
+
     produccion_taller =
       lotes_validos
       |> Enum.group_by(& &1.dia)
       |> Enum.map(fn {dia, lotes} -> {dia, Enum.reduce(lotes, 0, &(&1.prendas + &2))} end)
       |> Enum.into(%{})
 
-    # 2. Mapa del taller aliado proporcionado por el enunciado
     taller_aliado = %{1 => 550, 2 => 620, 3 => 480, 5 => 710, 7 => 200}
 
-    # 3. Combinación sumando la producción de los días presentes en ambos mapas
     produccion_combinada =
       Map.merge(produccion_taller, taller_aliado, fn _dia, p_taller, p_aliado ->
         p_taller + p_aliado
       end)
 
-    IO.puts("Producción Taller Propio: #{inspect(produccion_taller)}")
-    IO.puts("Producción Taller Aliado: #{inspect(taller_aliado)}")
-    IO.puts("Producción Combinada:    #{inspect(produccion_combinada)}")
+    IO.puts("productos de nuestro taller: #{inspect(produccion_taller)}")
+    IO.puts("produccion de otro taller: #{inspect(taller_aliado)}")
+    IO.puts("combinacion de la produccion:    #{inspect(produccion_combinada)}")
   end
 
-  def c3_mediciones_tc do
-    IO.puts("\n--- C.3 MEDICIONES DE RENDIMIENTO CON :timer.tc ---")
+  @doc """
+  C3: Mide con `:timer.tc/1` los tiempos de ejecución comparativos entre:
+  1. Búsqueda en Listas (`Enum.find/2`) vs Búsqueda en Mapas (`Map.get/2`) sobre 100.000 elementos.
+  2. Construcción de Listas concatenando al final (`++`) vs insertando al inicio (`[cabeza | cola]`).
 
-    # Experimento 1: Búsqueda en Lista vs Mapa (100.000 elementos, 1.000 búsquedas)
+  """
+  def c3_mediciones_tc do
+    IO.puts("\n ---C3 rendimiento con :timer.tc ")
+
+    # prueba 1
     confeccionistas_grandes =
       Enum.map(1..100_000, fn i ->
         %{codigo: "C#{i}", nombre: "Nombre #{i}"}
@@ -76,7 +118,7 @@ defmodule Investigacion do
         end)
       end)
 
-    # Experimento 2: Construcción de Lista (++ vs [elem | acc]) (20.000 elementos)
+    # prueba 2
     {t_masmas, _} =
       :timer.tc(fn ->
         Enum.reduce(1..20_000, [], fn x, acc -> acc ++ [x] end)
@@ -88,9 +130,9 @@ defmodule Investigacion do
       end)
 
     IO.puts("\nResultados de la prueba (en microsegundos µs):")
-    IO.puts("1. Búsqueda en Lista (Enum.find): #{t_lista} µs")
-    IO.puts("   Búsqueda en Mapa (Map.get):    #{t_mapa} µs")
-    IO.puts("2. Inserción al final (++):       #{t_masmas} µs")
-    IO.puts("   Inserción al inicio ([h | t]): #{t_cons} µs")
+    IO.puts("1. busqueda en Lista (Enum.find): #{t_lista} µs")
+    IO.puts("   busqueda en Mapa (Map.get):    #{t_mapa} µs")
+    IO.puts("2. insercion al final (++):       #{t_masmas} µs")
+    IO.puts("   insercion al inicio ([h | t]): #{t_cons} µs")
   end
 end
