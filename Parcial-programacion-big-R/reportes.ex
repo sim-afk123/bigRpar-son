@@ -39,6 +39,91 @@ defmodule Reportes do
     r8(validos, lineas)
   end
 
+   #apartado de calculos puros:
+   def calcular_r2(validos, lineas) do
+    map = Enum.group_by(validos, & &1.linea)
+
+    lineas
+    |> Enum.map(fn lin ->
+      prendas = Enum.reduce(Map.get(map, lin.id, []), 0, &(&1.prendas + &2))
+      %{id: lin.id, puestos: lin.puestos, prendas: prendas, prod: prendas / lin.puestos}
+    end)
+    |> Enum.sort_by(& &1.prod, :desc)
+  end
+
+  def calcular_r3(validos) do
+    map = Enum.group_by(validos, & &1.dia)
+
+    dias = Enum.map(1..6, fn d ->
+      p = Enum.reduce(Map.get(map, d, []), 0, &(&1.prendas + &2))
+      %{dia: d, prendas: p, meta: p >= 600}
+    end)
+
+    metas = Enum.map(dias, & &1.meta)
+    {dias, Enum.all?(metas), Enum.any?(metas)}
+  end
+
+  def calcular_r4(liquidaciones) do
+    Enum.sort_by(liquidaciones, & &1.neto, :desc)
+  end
+
+  def calcular_r5(validos) do
+    ganadores = Enum.map(1..6, fn d ->
+      lotes = Enum.filter(validos, &(&1.dia == d))
+      if lotes == [] do
+        {d, [], 0}
+      else
+        totales = lotes |> Enum.group_by(& &1.confeccionista) |> Enum.map(fn {c, l} -> {c, Enum.reduce(l, 0, &(&1.prendas + &2))} end)
+        max = totales |> Enum.map(&elem(&1, 1)) |> Enum.max()
+        top = Enum.filter(totales, &(elem(&1, 1) == max)) |> Enum.map(&elem(&1, 0))
+        {d, top, max}
+      end
+    end)
+
+    frec = ganadores |> Enum.flat_map(&elem(&1, 1)) |> Enum.frequencies()
+
+    lideres = if frec != %{} do
+      max = frec |> Map.values() |> Enum.max()
+      top = frec |> Enum.filter(&(elem(&1, 1) == max)) |> Enum.map(&elem(&1, 0))
+      {top, max}
+    else
+      {[], 0}
+    end
+
+    {ganadores, lideres}
+  end
+
+  def calcular_r6(validos) do
+    validos
+    |> Enum.group_by(& &1.confeccionista)
+    |> Enum.filter(fn {_c, l} -> length(l) >= 3 end)
+    |> Enum.map(fn {c, l} ->
+      prod = Enum.reduce(l, 0.0, &(&1.defectos * &1.prendas + &2))
+      prendas = Enum.reduce(l, 0, &(&1.prendas + &2))
+      %{c: c, p: prod / prendas}
+    end)
+    |> case do
+      [] -> nil
+      cand -> Enum.min_by(cand, & &1.p)
+    end
+  end
+
+  def calcular_r7(validos, liquidaciones) do
+    pagado = Enum.reduce(liquidaciones, 0.0, &(&1.neto + &2))
+    prendas = Enum.reduce(validos, 0, &(&1.prendas + &2))
+    promedio = if prendas > 0, do: pagado / prendas, else: nil
+    {pagado, prendas, promedio}
+  end
+
+  def calcular_r8(validos, lineas) do
+    todas = lineas |> Enum.map(& &1.id) |> Enum.uniq() |> Enum.sort()
+
+    validos
+    |> Enum.group_by(& &1.confeccionista)
+    |> Enum.filter(fn {_c, l} -> (l |> Enum.map(& &1.linea) |> Enum.uniq() |> Enum.sort()) == todas end)
+    |> Enum.map(&elem(&1, 0))
+  end
+
   @doc """
   R1: Imprime el detalle de lotes rechazados e indica la frecuencia por motivo de rechazo.
 
@@ -50,7 +135,7 @@ defmodule Reportes do
     IO.puts("R1: REPORTE DE LOTES RECHAZADOS Y RESUMEN POR MOTIVO")
 
     IO.puts("Detalle de lotes no válidos:")
-    IO.puts(String.pad_trailing("Confecc.", 10) <> String.pad_trailing("Línea", 8) <> String.pad_trailing("Día", 6) <> String.pad_trailing("Prendas", 10) <> String.pad_trailing("Defectos (%)", 14) <> "Motivo de Rechazo")
+    IO.puts(String.pad_trailing("conf.", 10) <> String.pad_trailing("linea", 8) <> String.pad_trailing("dia", 6) <> String.pad_trailing("prenda", 10) <> String.pad_trailing("defectos (%)", 14) <> "motivos de rechazo")
     IO.puts(String.duplicate("-", 20))
 
     Enum.each(invalidos, fn {l, m} ->
@@ -62,11 +147,11 @@ defmodule Reportes do
       IO.puts("#{c}#{lin}#{d}#{p}#{defec}:#{m}")
     end)
 
-    IO.puts("\nResumen de rechazos por motivo:")
+    IO.puts("\nresumen de rechazos por motivo:")
     invalidos
     |> Enum.frequencies_by(fn {_l, m} -> m end)
     |> Enum.each(fn {m, c} ->
-      IO.puts("  • Motivo ':#{m}': #{c} lote(s) rechazado(s)")
+      IO.puts(" el motivo es ':#{m}': #{c} lote(s) rechazado(s)")
     end)
   end
 
@@ -83,17 +168,10 @@ defmodule Reportes do
     IO.puts("\n")
     IO.puts("R2: PRODUCTIVIDAD SEMANAL POR LÍNEA DE PRODUCCIÓN (mayor a menor)")
 
-    IO.puts(String.pad_trailing("Línea", 10) <> String.pad_trailing("Puestos", 10) <> String.pad_trailing("Prendas Totales", 18) <> "Productividad (Prendas/Puesto)")
+    IO.puts(String.pad_trailing("linea", 10) <> String.pad_trailing("puestos", 10) <> String.pad_trailing("prendas totales", 18) <> "productividad")
     IO.puts(String.duplicate("-", 20))
 
-    map = Enum.group_by(validos, & &1.linea)
-
-    lineas
-    |> Enum.map(fn lin ->
-      prendas = Enum.reduce(Map.get(map, lin.id, []), 0, &(&1.prendas + &2))
-      %{id: lin.id, puestos: lin.puestos, prendas: prendas, prod: prendas / lin.puestos}
-    end)
-    |> Enum.sort_by(& &1.prod, :desc)
+    calcular_r2(validos, lineas)
     |> Enum.each(fn l ->
       id = String.pad_trailing(l.id, 10)
       puestos = String.pad_trailing(to_string(l.puestos), 10)
@@ -114,24 +192,21 @@ defmodule Reportes do
     IO.puts("\n")
     IO.puts("R3: PRODUCCIÓN DIARIA DEL TALLER Y EVALUACIÓN DE META (Meta: 600 prendas por día)")
 
-    IO.puts(String.pad_trailing("Día", 8) <> String.pad_trailing("Prendas Producidas", 22) <> "Estado Meta (>= 600)")
+    IO.puts(String.pad_trailing("dia", 8) <> String.pad_trailing("prendas hechas", 22) <> "estado meta (>= 600)")
     IO.puts(String.duplicate("-", 20))
 
-    map = Enum.group_by(validos, & &1.dia)
+    {dias, todos, alguno} = calcular_r3(validos)
 
-    res = Enum.map(1..6, fn d ->
-      p = Enum.reduce(Map.get(map, d, []), 0, &(&1.prendas + &2))
-      meta = p >= 600
-      estado = if meta, do: "CUMPLIDA", else: "NO CUMPLIDA"
-      dia_str = String.pad_trailing("Día #{d}", 8)
-      prendas_str = String.pad_trailing("#{p} prendas", 22)
+    Enum.each(dias, fn d ->
+      estado = if d.meta, do: "CUMPLIDA", else: "NO CUMPLIDA"
+      dia_str = String.pad_trailing("Día #{d.dia}", 8)
+      prendas_str = String.pad_trailing("#{d.prendas} prendas", 22)
       IO.puts("#{dia_str}#{prendas_str}#{estado}")
-      meta
     end)
 
     IO.puts(String.duplicate("-", 50))
-    IO.puts("¿se alcanzó la meta todos los dia?:     #{if Enum.all?(res), do: "SÍ", else: "NO"}")
-    IO.puts("¿se alcanzó la meta aunque sea un dia?:   #{if Enum.any?(res), do: "SÍ", else: "NO"}")
+    IO.puts("¿se alcanzó la meta todos los días?:   #{if todos, do: "SÍ", else: "NO"}")
+    IO.puts("¿se alcanzó la meta por lo menos un día?: #{if alguno, do: "SÍ", else: "NO"}")
   end
 
   @doc """
@@ -145,11 +220,10 @@ defmodule Reportes do
     IO.puts("\n")
     IO.puts("R4: LIQUIDACIÓN SEMANAL DE CONFECCIONISTAS (Ordenado por pago neto descendente)")
 
-    IO.puts(String.pad_trailing("Pos", 5) <> String.pad_trailing("Cód.", 6) <> String.pad_trailing("Nombre", 22) <> String.pad_trailing("Prendas", 9) <> String.pad_trailing("Bruto ($)", 13) <> String.pad_trailing("Bonos ($)", 12) <> String.pad_trailing("Alquiler ($)", 13) <> "Neto a Pagar ($)")
-    IO.puts(String.duplicate("-", 92))
+    IO.puts(String.pad_trailing("pos", 5) <> String.pad_trailing("cod.", 6) <> String.pad_trailing("nombre", 22) <> String.pad_trailing("prendas", 9) <> String.pad_trailing("bruto ($)", 13) <> String.pad_trailing("bono ($)", 12) <> String.pad_trailing("alquiler ($)", 13) <> "neto a pagar ($)")
+    IO.puts(String.duplicate("-", 20))
 
-    liquidaciones
-    |> Enum.sort_by(& &1.neto, :desc)
+    calcular_r4(liquidaciones)
     |> Enum.with_index(1)
     |> Enum.each(fn {l, i} ->
       pos = String.pad_trailing("#{i}.", 5)
@@ -176,25 +250,18 @@ defmodule Reportes do
     IO.puts("\n")
     IO.puts("R5: CONFECCIONISTA(S) MÁS PRODUCTIVO(S) POR DÍA Y LÍDER GENERAL")
 
-    ganadores = Enum.map(1..6, fn d ->
-      lotes = Enum.filter(validos, &(&1.dia == d))
-      if lotes == [] do
-        IO.puts("  dia #{d}: sin lotes válidos registrados")
-        []
+    {ganadores, {top_lideres, max_dias}} = calcular_r5(validos)
+
+    Enum.each(ganadores, fn {d, top, max} ->
+      if top == [] do
+        IO.puts("  dia #{d}: sin lotes validos que puedieran ser registrados")
       else
-        totales = lotes |> Enum.group_by(& &1.confeccionista) |> Enum.map(fn {c, l} -> {c, Enum.reduce(l, 0, &(&1.prendas + &2))} end)
-        max = totales |> Enum.map(&elem(&1, 1)) |> Enum.max()
-        top = Enum.filter(totales, &(elem(&1, 1) == max)) |> Enum.map(&elem(&1, 0))
-        IO.puts("  • Día #{d}: #{Enum.join(top, ", ")} con #{max} prendas")
-        top
+        IO.puts("  dia #{d}: #{Enum.join(top, ", ")} con #{max} prenda")
       end
     end)
 
-    frec = ganadores |> List.flatten() |> Enum.frequencies()
-    if frec != %{} do
-      max = frec |> Map.values() |> Enum.max()
-      top = frec |> Enum.filter(&(elem(&1, 1) == max)) |> Enum.map(&elem(&1, 0))
-      IO.puts("\n   mas dias ocupando el 1er lugar: #{Enum.join(top, ", ")} (#{max} día(s))")
+    if top_lideres != [] do
+      IO.puts("\n   mas dias a la cabeza: #{Enum.join(top_lideres, ", ")} (#{max_dias} dia(s))")
     end
   end
 
@@ -210,21 +277,13 @@ defmodule Reportes do
     IO.puts("\n")
     IO.puts("R6: CONFECCIONISTA CON MEJOR CALIDAD (por lo menos 3 lotes, menor porcentaje ponderado de defectos)")
 
-    cand = validos
-    |> Enum.group_by(& &1.confeccionista)
-    |> Enum.filter(fn {_c, l} -> length(l) >= 3 end)
-    |> Enum.map(fn {c, l} ->
-      prod = Enum.reduce(l, 0.0, &(&1.defectos * &1.prendas + &2))
-      prendas = Enum.reduce(l, 0, &(&1.prendas + &2))
-      %{c: c, p: prod / prendas}
-    end)
+    case calcular_r6(validos) do
+      nil ->
+        IO.puts("  Ningún confeccionista cumple con el mínimo de 3 lotes válidos.")
 
-    if cand == [] do
-      IO.puts("  Ningún confeccionista cumple con el mínimo de 3 lotes válidos.")
-    else
-      m = Enum.min_by(cand, & &1.p)
-      IO.puts("  confeccionista destacado: Código #{m.c}")
-      IO.puts("  porcentaje ponderado de defectos: #{Util.formatter(m.p)}%")
+      m ->
+        IO.puts("  confeccionista de renombre: Código #{m.c}")
+        IO.puts("  porcen. ponderado: #{Util.formatter(m.p)}%")
     end
   end
 
@@ -240,13 +299,13 @@ defmodule Reportes do
     IO.puts("\n")
     IO.puts(" **R7: TOTAL COSTO DE NÓMINA SEMANAL Y COSTO PROMEDIO POR PRENDA VÁLIDA** ")
 
-    pagado = Enum.reduce(liquidaciones, 0.0, &(&1.neto + &2))
-    prendas = Enum.reduce(validos, 0, &(&1.prendas + &2))
-    promedio = if prendas > 0, do: "$" <> Util.formatter(pagado / prendas), else: "no calculable (0 prendas válidas)"
+    {pagado, prendas, promedio} = calcular_r7(validos, liquidaciones)
 
-    IO.puts("  total desembolsado por el taller:  $#{Util.formatter(pagado)}")
-    IO.puts("  total de prendas válidas producidas: #{prendas}")
-    IO.puts("  costo promedio por prenda válida:   #{promedio}")
+    prom_str = if promedio, do: "$" <> Util.formatter(promedio), else: "no calculable (en 0s)"
+
+    IO.puts("  el total desembolsado por el taller:  $#{Util.formatter(pagado)}")
+    IO.puts("  el total de prendas válidas producidas: #{prendas}")
+    IO.puts("  el total promedio por prenda valida:   #{prom_str}")
   end
 
   @doc """
@@ -261,20 +320,12 @@ defmodule Reportes do
     IO.puts("\n")
     IO.puts("R8: CONFECCIONISTAS QUE TRABAJARON EN TODAS LAS LÍNEAS DE PRODUCCIÓN")
 
-    todas = lineas
-    |> Enum.map(& &1.id)
-    |> Enum.uniq()
-    |> Enum.sort()
+    case calcular_r8(validos, lineas) do
+      [] ->
+        IO.puts("  ningun confeccionista registro lotes en todas las lineas.")
 
-    cumplen = validos
-    |> Enum.group_by(& &1.confeccionista)
-    |> Enum.filter(fn {_c, l} -> (l |> Enum.map(& &1.linea) |> Enum.uniq() |> Enum.sort()) == todas end)
-    |> Enum.map(&elem(&1, 0))
-
-    if cumplen == [] do
-      IO.puts("  ningun confeccionista registró lotes en todas las líneas.")
-    else
-      IO.puts("  confeccionista(s) con presencia total: #{Enum.join(cumplen, ", ")}")
+      cumplen ->
+        IO.puts("  confeccionista con presencia total: #{Enum.join(cumplen, ", ")}")
     end
     IO.puts(".......\n")
   end

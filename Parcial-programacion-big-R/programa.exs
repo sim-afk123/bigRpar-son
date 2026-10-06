@@ -53,13 +53,15 @@ defmodule Programa do
 
   """
   defp procesar_lote_adicional(lotes_base) do
-    entrada = Util.ingresar("ingrese un lote adicional (confeccionista;linea;dia;prendas;defectos) o tan solo de enter para omitir: ", :texto)
+    entrada = Util.ingresar("ingrese un lote adicional (confeccionista linea dia prendas defectos) o simplmente dele enter para omitir: ", :texto)
 
     if entrada == "" do
       Util.mostrar_mensaje("lote adicional omitido.")
       lotes_base
     else
-      case String.split(entrada, ";") do
+      separador = if String.contains?(entrada, ";"), do: ";", else: " "
+
+      case String.split(entrada, separador, trim: true) do
         [c, l, d_str, p_str, def_str] ->
           try do
             nuevo_lote = %{
@@ -67,9 +69,9 @@ defmodule Programa do
               linea: String.trim(l),
               dia: String.to_integer(String.trim(d_str)),
               prendas: String.to_integer(String.trim(p_str)),
-              defectos: String.to_float(String.trim(def_str))
+              defectos: parse_numero(String.trim(def_str))
             }
-            Util.mostrar_mensaje("lote agregado correctamente.")
+            Util.mostrar_mensaje("Lote agregado correctamente.")
             [nuevo_lote | lotes_base]
           rescue
             ArgumentError ->
@@ -84,6 +86,14 @@ defmodule Programa do
     end
   end
 
+  defp parse_numero(str) do
+    if String.contains?(str, ".") do
+      String.to_float(str)
+    else
+      String.to_integer(str) * 1.0
+    end
+  end
+
   @doc """
   Solicita el código de un confeccionista para imprimir un comprobante desglosado
   día por día con sus valores, bonificaciones y deducciones aplicables.
@@ -93,35 +103,35 @@ defmodule Programa do
 
   """
   defp solicitar_comprobante_individual(liquidaciones) do
-    codigo = Util.ingresar("\ningrese el código de un confeccionista para ver su comprobante: ", :texto)
+    codigo = Util.ingresar("\ningrese el código de un confeccionista que revisaremos: ", :texto)
     c_codigo = String.trim(codigo)
 
     case Enum.find(liquidaciones, fn liq -> liq.codigo == c_codigo end) do
       nil ->
-        Util.mostrar_error("el confeccionista '#{c_codigo}' no existe.")
+        Util.mostrar_error("El confeccionista '#{c_codigo}' no existe.")
 
       liq ->
-        IO.puts("\n" <> String.duplicate("-", 20))
-        IO.puts("comprobante individual")
-        IO.puts("confeccionista: #{liq.nombre} (#{liq.codigo})")
-        IO.puts(String.duplicate("-", 20))
+        IO.puts("\n" <> String.duplicate("-", 40))
+        IO.puts("comporbante individual")
+        IO.puts("Confeccionista: #{liq.nombre} (#{liq.codigo})")
+        IO.puts(String.duplicate("-", 40))
 
         dias_trabajados = Enum.group_by(liq.lotes, & &1.dia)
 
         Enum.each(Enum.sort(Map.keys(dias_trabajados)), fn dia ->
           lotes_dia = Map.get(dias_trabajados, dia)
           prendas_dia = Enum.reduce(lotes_dia, 0, &(&1.prendas + &2))
-          val_lotes_dia = Enum.reduce(lotes_dia, 0.0, &(&1.prendas * 3200 * Liquidacion.calcular_factor_ajuste(&1.defectos) + &2))
-          bono_dia = if prendas_dia >= 120, do: 18000.0, else: 0.0
+          val_lotes_dia = Enum.reduce(lotes_dia, 0.0, fn l, acc -> acc + Liquidacion.calcular_valor_lote(l) end)
+          bono_dia = Liquidacion.calcular_bonificaciones_diarias(lotes_dia) * 1.0
 
-          IO.puts("dia #{dia}: #{prendas_dia} prendas | valor lotes: $#{Util.formatter(val_lotes_dia)} \vert{} bono: $#{Util.formatter(bono_dia)}")
+          IO.puts("dia #{dia}: #{prendas_dia} prendas | valor lotes: $#{Util.formatter(val_lotes_dia)} | bono: $#{Util.formatter(bono_dia)}")
         end)
 
         IO.puts(String.duplicate("-", 20))
-        IO.puts("suma de lotes:       $#{Util.formatter(liq.bruto)}")
-        IO.puts("suma bonificaciones: $#{Util.formatter(liq.bonificaciones)}")
+        IO.puts("suma de los lotes:       $#{Util.formatter(liq.bruto)}")
+        IO.puts("suma el bonificaciones: $#{Util.formatter(liq.bonificaciones)}")
         IO.puts("descuento alquiler: -$#{Util.formatter(liq.alquiler)}")
-        IO.puts("PAGO NETO:           $#{Util.formatter(liq.neto)}")
+        IO.puts("pago NETO:           $#{Util.formatter(liq.neto)}")
         IO.puts(String.duplicate("-", 20))
     end
   end

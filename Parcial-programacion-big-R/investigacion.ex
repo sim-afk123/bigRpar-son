@@ -89,9 +89,8 @@ defmodule Investigacion do
 
   """
   def c3_mediciones_tc do
-    IO.puts("\n ---C3 rendimiento con :timer.tc ")
+    IO.puts("\n--- C3 Rendimiento con :timer.tc (3 Repeticiones)")
 
-    # prueba 1
     confeccionistas_grandes =
       Enum.map(1..100_000, fn i ->
         %{codigo: "C#{i}", nombre: "Nombre #{i}"}
@@ -104,35 +103,46 @@ defmodule Investigacion do
 
     codigos_a_buscar = Enum.map(1..1_000, fn _ -> "C#{Enum.random(1..100_000)}" end)
 
-    {t_lista, _} =
-      :timer.tc(fn ->
-        Enum.each(codigos_a_buscar, fn cod ->
-          Enum.find(confeccionistas_grandes, fn c -> c.codigo == cod end)
-        end)
+    mediciones =
+      Enum.map(1..3, fn i ->
+        {t_lista, _} =
+          :timer.tc(fn ->
+            Enum.each(codigos_a_buscar, fn cod ->
+              Enum.find(confeccionistas_grandes, fn c -> c.codigo == cod end)
+            end)
+          end)
+
+        {t_mapa, _} =
+          :timer.tc(fn ->
+            Enum.each(codigos_a_buscar, fn cod ->
+              Map.get(mapa_indexado, cod)
+            end)
+          end)
+
+        {t_masmas, _} =
+          :timer.tc(fn ->
+            Enum.reduce(1..20_000, [], fn x, acc -> acc ++ [x] end)
+          end)
+
+        {t_cons, _} =
+          :timer.tc(fn ->
+            Enum.reduce(1..20_000, [], fn x, acc -> [x | acc] end)
+          end)
+
+        IO.puts("\nRepetición #{i}:")
+        IO.puts("1 buscar Lista: #{t_lista} µs | Búsqueda Mapa: #{t_mapa} µs")
+        IO.puts("2 Inserción ++: #{t_masmas} µs | Inserción [h|t]: #{t_cons} µs")
+
+        {t_lista, t_mapa, t_masmas, t_cons}
       end)
 
-    {t_mapa, _} =
-      :timer.tc(fn ->
-        Enum.each(codigos_a_buscar, fn cod ->
-          Map.get(mapa_indexado, cod)
-        end)
-      end)
+    prom_lista = Enum.reduce(mediciones, 0, &(elem(&1, 0) + &2)) / 3
+    prom_mapa = Enum.reduce(mediciones, 0, &(elem(&1, 1) + &2)) / 3
+    prom_masmas = Enum.reduce(mediciones, 0, &(elem(&1, 2) + &2)) / 3
+    prom_cons = Enum.reduce(mediciones, 0, &(elem(&1, 3) + &2)) / 3
 
-    # prueba 2
-    {t_masmas, _} =
-      :timer.tc(fn ->
-        Enum.reduce(1..20_000, [], fn x, acc -> acc ++ [x] end)
-      end)
-
-    {t_cons, _} =
-      :timer.tc(fn ->
-        Enum.reduce(1..20_000, [], fn x, acc -> [x | acc] end)
-      end)
-
-    IO.puts("\nResultados de la prueba (en microsegundos µs):")
-    IO.puts("1. busqueda en Lista (Enum.find): #{t_lista} µs")
-    IO.puts("   busqueda en Mapa (Map.get):    #{t_mapa} µs")
-    IO.puts("2. insercion al final (++):       #{t_masmas} µs")
-    IO.puts("   insercion al inicio ([h | t]): #{t_cons} µs")
+    IO.puts("\nPROMEDIOS PROCESADOS:")
+    IO.puts("1 buscar Lista (promedio): #{prom_lista} µs | Búsqueda Mapa (promedio): #{prom_mapa} µs")
+    IO.puts("2 insecion ++ (promedio):    #{prom_masmas} µs | Inserción [h|t] (promedio): #{prom_cons} µs")
   end
 end

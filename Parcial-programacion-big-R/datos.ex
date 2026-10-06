@@ -201,7 +201,18 @@ defmodule Datos do
       %{confeccionista: "C05", linea: "L3", dia: 1, prendas: 80, defectos: 3.0},
       %{confeccionista: "C06", linea: "L4", dia: 2, prendas: 90, defectos: 2.0},
       %{confeccionista: "C07", linea: "L1", dia: 3, prendas: 100, defectos: 1.0},
-      %{confeccionista: "C08", linea: "L2", dia: 4, prendas: 110, defectos: 4.0}
+      %{confeccionista: "C08", linea: "L2", dia: 4, prendas: 110, defectos: 4.0},
+      %{confeccionista: "C09", linea: "L3", dia: 2, prendas: 75, defectos: 1.0},
+      %{confeccionista: "C10", linea: "L1", dia: 3, prendas: 85, defectos: 2.0},
+      %{confeccionista: "C01", linea: "L4", dia: 6, prendas: 65, defectos: 0.8},
+      %{confeccionista: "C02", linea: "L4", dia: 5, prendas: 95, defectos: 1.2},
+      %{confeccionista: "C03", linea: "L2", dia: 4, prendas: 105, defectos: 3.0},
+      %{confeccionista: "C04", linea: "L3", dia: 5, prendas: 115, defectos: 0.0},
+      %{confeccionista: "C05", linea: "L4", dia: 6, prendas: 125, defectos: 2.5},
+      %{confeccionista: "C06", linea: "L1", dia: 3, prendas: 80, defectos: 1.1},
+      %{confeccionista: "C07", linea: "L2", dia: 2, prendas: 90, defectos: 2.2},
+      %{confeccionista: "C08", linea: "L3", dia: 1, prendas: 70, defectos: 1.8},
+      %{confeccionista: "C09", linea: "L4", dia: 4, prendas: 100, defectos: 0.5}
     ]
   end
 end
